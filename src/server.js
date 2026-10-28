@@ -3,133 +3,59 @@ import cookieParser from 'cookie-parser';
 
 import config from './config.js';
 import * as discord from './discord.js';
-import * as storage from './storage.js';
 
-/**
- * Main HTTP server used for the bot.
- */
+// Serviço OAuth2 para cargos vinculados da Astralis (Eclipse).
+const app = express();
+app.disable('x-powered-by');
+app.use(cookieParser(config.COOKIE_SECRET));
 
- const app = express();
- app.use(cookieParser(config.COOKIE_SECRET));
+app.get('/', (req, res) => {
+  res.send('🌙 Astralis — Serviço de verificação do Eclipse disponível.');
+});
 
- /**
-  * Just a happy little route to show our server is up.
-  */
- app.get('/', (req, res) => {
-   res.send('🌙 Astralis — Serviço de verificação do servidor Eclipse disponível.');
- });
-
-/**
- * Route configured in the Discord developer console which facilitates the
- * connection between Discord and any additional services you may use. 
- * To start the flow, generate the OAuth2 consent dialog url for Discord, 
- * and redirect the user there.
- */
-app.get('/linked-role', async (req, res) => {
+app.get('/linked-role', (req, res) => {
   const { url, state } = discord.getOAuthUrl();
-
-  // Store the signed state param in the user's cookies so we can verify
-  // the value later. See:
-  // https://discord.com/developers/docs/topics/oauth2#state-and-security
-  res.cookie('clientState', state, { maxAge: 1000 * 60 * 5, signed: true });
-
-  // Send the user to the Discord owned OAuth2 authorization endpoint
+  res.cookie('clientState', state, {
+    maxAge: 5 * 60 * 1000,
+    signed: true,
+    httpOnly: true,
+    secure: true,
+    sameSite: 'lax',
+  });
   res.redirect(url);
 });
 
-/**
- * Route configured in the Discord developer console, the redirect Url to which
- * the user is sent after approving the bot for their Discord account. This
- * completes a few steps:
- * 1. Uses the code to acquire Discord OAuth2 tokens
- * 2. Uses the Discord Access Token to fetch the user profile
- * 3. Stores the OAuth2 Discord Tokens in Redis / Firestore
- * 4. Lets the user know it's all good and to go back to Discord
- */
- app.get('/discord-oauth-callback', async (req, res) => {
+app.get('/discord-oauth-callback', async (req, res) => {
   try {
-    // 1. Uses the code and state to acquire Discord OAuth2 tokens
-    const code = req.query['code'];
-    const discordState = req.query['state'];
+    const code = req.query.code;
+    const discordState = req.query.state;
+    const clientState = req.signedCookies?.clientState;
 
-    // make sure the state parameter exists
-    const { clientState } = req.signedCookies;
-    if (clientState !== discordState) {
-      console.error('Falha na validação de segurança da autorização.');
-      return res.status(403).send('Não foi possível validar a autorização. Volte ao Discord e tente novamente.');
+    if (!code || !discordState || !clientState || discordState !== clientState) {
+      return res.status(403).send('Não foi possível validar a conexão. Volte ao Discord e tente novamente.');
     }
 
     const tokens = await discord.getOAuthTokens(code);
-
-    // 2. Uses the Discord Access Token to fetch the user profile
     const meData = await discord.getUserData(tokens);
-    const userId = meData.user.id;
-    await storage.storeDiscordTokens(userId, {
+    if (!meData?.user?.id) throw new Error('A conta do Discord não foi encontrada.');
+
+    // Marca somente que a pessoa autorizou a conexão.
+    // Não comprova identidade real nem substitui verificação humana.
+    const tokenInfo = {
       access_token: tokens.access_token,
-      refresh_token: tokens.refresh_token,
       expires_at: Date.now() + tokens.expires_in * 1000,
-    });
-
-    // 3. Update the users metadata, assuming future updates will be posted to the `/update-metadata` endpoint
-    await updateMetadata(userId);
-
-    res.send('🌙 Tudo certo! Sua conta foi conectada à Astralis. Você já pode voltar ao Discord.');
-  } catch (e) {
-    console.error(e);
-    res.status(500).send('Ocorreu um erro na verificação. Tente novamente mais tarde.');
-  }
-});
-
-/**
- * Example route that would be invoked when an external data source changes. 
- * This example calls a common `updateMetadata` method that pushes static
- * data to Discord.
- */
- app.post('/update-metadata', async (req, res) => {
-  try {
-    const userId = req.body.userId;
-    await updateMetadata(userId)
-
-    res.sendStatus(204);
-  } catch (e) {
-    res.status(500).send('Ocorreu um erro na verificação. Tente novamente mais tarde.');
-  }
-});
-
-/**
- * Given a Discord UserId, push static make-believe data to the Discord 
- * metadata endpoint. 
- */
-async function updateMetadata(userId) {
-  // Fetch the Discord tokens from storage
-  const tokens = await storage.getDiscordTokens(userId);
-    
-  let metadata = {};
-  try {
-    // Fetch the new metadata you want to use from an external source. 
-    // This data could be POST-ed to this endpoint, but every service
-    // is going to be different.  To keep the example simple, we'll
-    // just generate some random data. 
-    metadata = {
-      cookieseaten: 1483,
-      allergictonuts: 0, // 0 for false, 1 for true
-      firstcookiebaked: '2003-12-20',
     };
-  } catch (e) {
-    e.message = `Error fetching external data: ${e.message}`;
-    console.error(e);
-    // If fetching the profile data for the external service fails for any reason,
-    // ensure metadata on the Discord side is nulled out. This prevents cases
-    // where the user revokes an external app permissions, and is left with
-    // stale linked role data.
+    await discord.pushMetadata(meData.user.id, tokenInfo, { conta_vinculada: 1 });
+
+    res.clearCookie('clientState', { httpOnly: true, secure: true, sameSite: 'lax' });
+    res.send('🌙 Sua conta foi conectada à Astralis! Volte ao Discord para receber o cargo vinculado.');
+  } catch (error) {
+    console.error('Falha na conexão da Astralis:', error?.message || error);
+    res.status(500).send('Não foi possível concluir a conexão. Tente novamente mais tarde.');
   }
-
-  // Push the data to Discord.
-  await discord.pushMetadata(userId, tokens, metadata);
-}
-
+});
 
 const port = process.env.PORT || 3000;
 app.listen(port, () => {
-  console.log(`Astralis: serviço de verificação iniciado na porta ${port}`);
+  console.log(`Astralis: serviço de verificação iniciado na porta ${port}.`);
 });
