@@ -1,4 +1,5 @@
 import {
+  ChannelType,
   Client,
   EmbedBuilder,
   Events,
@@ -6,10 +7,12 @@ import {
   MessageFlags,
   PermissionFlagsBits,
   SlashCommandBuilder,
+  escapeMarkdown,
 } from 'discord.js';
 
+// Ative no Render com ENABLE_WELCOME=true; opcionalmente defina WELCOME_CHANNEL_ID.
 const welcomeChannelId = process.env.WELCOME_CHANNEL_ID?.trim();
-const welcomeEnabled = Boolean(welcomeChannelId);
+const welcomeEnabled = Boolean(welcomeChannelId) || process.env.ENABLE_WELCOME?.toLowerCase() === 'true';
 const intents = [GatewayIntentBits.Guilds];
 if (welcomeEnabled) intents.push(GatewayIntentBits.GuildMembers);
 
@@ -88,12 +91,17 @@ function eclipseEmbed(guild) {
   return embed;
 }
 
-function welcomeEmbed(userMention, guild) {
+function welcomeEmbed(member) {
+  const memberName = escapeMarkdown(member.displayName || member.user.globalName || member.user.username).slice(0, 80);
+  const memberMention = member.user.toString();
+  const memberAvatar = member.user.displayAvatarURL({ size: 256 });
+  const guild = member.guild;
   const embed = new EmbedBuilder()
     .setColor(purple)
     .setTitle('☾ ⋆⁺₊✧ Uma nova estrela chegou ao Eclipse! ✧₊⁺⋆')
     .setDescription(
-      '🌙 **Seja muito bem-vindo(a), ' + userMention + '!**\n\n' +
+      '🌙 **Seja muito bem-vindo(a), ' + memberMention + '!**\n' +
+      '✦ **' + memberName + '**, sua estrela acaba de chegar ao nosso universo.\n\n' +
       'Entre tantas constelações, uma nova história acaba de começar: **a sua**.\n\n' +
       'Eu sou **Astralis**, a guardiã celestial deste pequeno universo. Que você encontre boas conversas, novas amizades e um lugar para compartilhar aquilo que faz seus olhos brilharem. ✨'
     )
@@ -112,8 +120,27 @@ function welcomeEmbed(userMention, guild) {
       }
     )
     .setFooter({ text: 'Astralis • Mesmo na noite, cada estrela tem seu brilho' });
-  if (guild?.iconURL()) embed.setThumbnail(guild.iconURL());
+  embed.setThumbnail(memberAvatar);
   return embed;
+}
+
+// Procura o canal #seja-bem-vindo quando nenhum ID foi configurado.
+// Um ID explícito evita ambiguidades quando existem canais parecidos.
+async function resolveWelcomeChannel(guild) {
+  if (welcomeChannelId) return guild.channels.fetch(welcomeChannelId);
+  const channels = await guild.channels.fetch();
+  const cleanName = (value) => String(value).normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z]/g, '');
+  const matches = [...channels.values()].filter((channel) => {
+    if (!channel || channel.type !== ChannelType.GuildText) return false;
+    const name = cleanName(channel.name);
+    return name.includes('sejabemvindo') || name.includes('boasvindas');
+  });
+  if (matches.length !== 1) {
+    console.warn('Astralis: não foi possível identificar um único canal de boas-vindas. Canais encontrados:', matches.length);
+    return null;
+  }
+  return matches[0];
 }
 
 async function registerCommands(guild) {
@@ -184,7 +211,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
           return;
         }
         await interaction.reply({
-          embeds: [welcomeEmbed(interaction.user.toString(), interaction.guild)],
+          embeds: [welcomeEmbed({ user: interaction.user, displayName: interaction.member?.displayName, guild: interaction.guild })],
           flags: MessageFlags.Ephemeral,
           allowedMentions: { parse: [] },
         });
@@ -200,13 +227,13 @@ client.on(Events.InteractionCreate, async (interaction) => {
 client.on(Events.GuildMemberAdd, async (member) => {
   if (!welcomeEnabled) return;
   try {
-    const channel = await member.guild.channels.fetch(welcomeChannelId);
+    const channel = await resolveWelcomeChannel(member.guild);
     if (!channel?.isTextBased() || typeof channel.send !== 'function') {
       console.warn('Astralis: canal de boas-vindas não encontrado ou não é de texto.');
       return;
     }
     await channel.send({
-      embeds: [welcomeEmbed(member.toString(), member.guild)],
+      embeds: [welcomeEmbed(member)],
       allowedMentions: { users: [member.id] },
     });
   } catch (error) {
@@ -220,7 +247,7 @@ export async function startDiscordBot() {
     return;
   }
   if (!welcomeEnabled) {
-    console.log('Astralis: adicione WELCOME_CHANNEL_ID para ativar as boas-vindas automáticas.');
+    console.log('Astralis: para ativar as boas-vindas, habilite Server Members Intent no Discord e configure ENABLE_WELCOME=true no Render.');
   }
   try {
     await client.login(process.env.DISCORD_TOKEN);
