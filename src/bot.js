@@ -3,6 +3,8 @@ import {
   EmbedBuilder,
   Events,
   GatewayIntentBits,
+  MessageFlags,
+  PermissionFlagsBits,
   SlashCommandBuilder,
 } from 'discord.js';
 
@@ -12,13 +14,107 @@ const intents = [GatewayIntentBits.Guilds];
 if (welcomeEnabled) intents.push(GatewayIntentBits.GuildMembers);
 
 const client = new Client({ intents });
+const purple = 0x8a62b3;
+
 const commands = [
   new SlashCommandBuilder().setName('ola').setDescription('Receba uma saudação da Astralis.'),
-  new SlashCommandBuilder().setName('ajuda').setDescription('Veja o que a Astralis pode fazer.'),
-  new SlashCommandBuilder().setName('astralis').setDescription('Conheça a guardiã do Eclipse.'),
-  new SlashCommandBuilder().setName('eclipse').setDescription('Conheça o universo do servidor Eclipse.'),
+  new SlashCommandBuilder().setName('ajuda').setDescription('Descubra os comandos da Astralis.'),
+  new SlashCommandBuilder().setName('astralis').setDescription('Conheça a guardiã celestial do Eclipse.'),
+  new SlashCommandBuilder().setName('eclipse').setDescription('Descubra o universo do servidor Eclipse.'),
   new SlashCommandBuilder().setName('ping').setDescription('Confira se a Astralis está respondendo.'),
+  new SlashCommandBuilder()
+    .setName('previa-boasvindas')
+    .setDescription('Veja como será a mensagem de boas-vindas (equipe do servidor).')
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
 ].map((command) => command.toJSON());
+
+function presentationEmbed(guild) {
+  const embed = new EmbedBuilder()
+    .setColor(purple)
+    .setTitle('☾ ✧ Astralis — Guardiã celestial do Eclipse')
+    .setDescription(
+      '🌙 **Nascida entre as estrelas e envolta pelo mistério da noite**, sou Astralis, a presença que acompanha os viajantes deste universo.\n\n' +
+      'Não carrego uma coroa nem domino as constelações: minha missão é mais simples e especial. Estou aqui para **acolher novos membros, orientar quem chega e ajudar a tornar o Eclipse um lugar agradável para todos**.'
+    )
+    .addFields(
+      {
+        name: '✦ O que posso fazer?',
+        value: 'Receber novos membros, apresentar o servidor, responder aos meus comandos e orientar a conexão necessária para o cargo **Verificado**.',
+      },
+      {
+        name: '🪐 Como falar comigo?',
+        value: 'Experimente **/ola**, **/ajuda** ou **/eclipse**. Para o cargo vinculado, abra **Cargos vinculados** no menu do servidor.',
+      },
+      {
+        name: '☽ Uma pequena promessa',
+        value: 'Mesmo na imensidão da noite, cada estrela tem seu próprio brilho. Que a sua encontre espaço aqui.',
+      }
+    )
+    .setFooter({ text: 'Astralis • Entre estrelas, histórias e novos começos' });
+  if (guild?.iconURL()) embed.setThumbnail(guild.iconURL());
+  return embed;
+}
+
+function eclipseEmbed(guild) {
+  const embed = new EmbedBuilder()
+    .setColor(purple)
+    .setTitle('🌑 ✦ Eclipse — Onde diferentes estrelas se encontram')
+    .setDescription(
+      'Entre a luz e a escuridão existe um universo feito de encontros: **o Eclipse**.\n\n' +
+      'Nosso servidor é um espaço de convivência para quem gosta de trocar ideias, fazer amizades e compartilhar aquilo que ama. Aqui, uma conversa simples pode virar uma lembrança especial — e cada pessoa acrescenta algo único à nossa constelação.'
+    )
+    .addFields(
+      {
+        name: '🎮 Jogos & diversão',
+        value: 'Encontre companhia para jogar, participe das conversas e compartilhe momentos divertidos.',
+        inline: true,
+      },
+      {
+        name: '🎧 Música & bate-papo',
+        value: 'Descubra gostos em comum, indique suas músicas favoritas e converse sobre o que quiser.',
+        inline: true,
+      },
+      {
+        name: '🎨 Artes & poesia',
+        value: 'Um cantinho para desenhos, criações, textos e toda a criatividade que merece ser compartilhada.',
+      },
+      {
+        name: '☾ Primeiros passos',
+        value: 'Conheça as regras, explore os canais e, se desejar o cargo **✦・Verificado**, acesse **Cargos vinculados** no menu do servidor.',
+      }
+    )
+    .setFooter({ text: 'Eclipse • Um universo de conversas, criatividade e companhia' });
+  if (guild?.iconURL()) embed.setThumbnail(guild.iconURL());
+  return embed;
+}
+
+function welcomeEmbed(userMention, guild) {
+  const embed = new EmbedBuilder()
+    .setColor(purple)
+    .setTitle('☾ ⋆⁺₊✧ Uma nova estrela chegou ao Eclipse! ✧₊⁺⋆')
+    .setDescription(
+      '🌙 **Seja muito bem-vindo(a), ' + userMention + '!**\n\n' +
+      'Entre tantas constelações, uma nova história acaba de começar: **a sua**.\n\n' +
+      'Eu sou **Astralis**, a guardiã celestial deste pequeno universo. Que você encontre boas conversas, novas amizades e um lugar para compartilhar aquilo que faz seus olhos brilharem. ✨'
+    )
+    .addFields(
+      {
+        name: '✦ Comece sua jornada',
+        value: 'Conheça as **regras** e explore os canais do servidor para descobrir seus cantinhos favoritos.',
+      },
+      {
+        name: '🎮 🎧 🎨 Há espaço para você',
+        value: 'Jogos, música, bate-papos, desenhos e poesias: participe do que gostar, no seu ritmo.',
+      },
+      {
+        name: '🌑 Quer o cargo Verificado?',
+        value: 'Abra o menu do **Eclipse → Cargos vinculados → ✦・Verificado** e conecte sua conta à Astralis.',
+      }
+    )
+    .setFooter({ text: 'Astralis • Mesmo na noite, cada estrela tem seu brilho' });
+  if (guild?.iconURL()) embed.setThumbnail(guild.iconURL());
+  return embed;
+}
 
 async function registerCommands(guild) {
   try {
@@ -40,26 +136,62 @@ client.once(Events.ClientReady, async (readyClient) => {
     await registerCommands(guild);
   }
 });
-
 client.on(Events.GuildCreate, registerCommands);
 
 client.on(Events.InteractionCreate, async (interaction) => {
   if (!interaction.isChatInputCommand()) return;
-  const responses = {
-    ola: '🌙 Olá, ' + interaction.user.toString() + '! Que as estrelas iluminem sua passagem pelo Eclipse. ✨',
-    ajuda: '✦ **Comandos da Astralis**\n**/ola** — Uma saudação celestial.\n**/astralis** — Quem sou eu.\n**/eclipse** — Sobre o servidor.\n**/ping** — Verificar se estou respondendo.\n\n🌑 Para o cargo **Verificado**, use os **Cargos vinculados** no menu do servidor.',
-    astralis: '☾ **Astralis — Guardiã celestial do Eclipse**\nNascida entre as estrelas e envolta pelo mistério da noite, minha missão é orientar e trazer harmonia ao nosso universo. ✨',
-    eclipse: '🌌 **Eclipse**\nUm cantinho entre a luz e a escuridão, onde amizades, conversas, jogos e arte se encontram. Bem-vindo ao nosso universo! 🌙',
-    ping: '✨ Astralis está aqui e respondendo!',
-  };
-  const content = responses[interaction.commandName];
-  if (!content) return;
 
   try {
-    await interaction.reply({
-      content,
-      allowedMentions: { users: interaction.commandName === 'ola' ? [interaction.user.id] : [] },
-    });
+    switch (interaction.commandName) {
+      case 'ola':
+        await interaction.reply({
+          content: '🌙 Olá, ' + interaction.user.toString() + '! Que as estrelas iluminem sua passagem pelo Eclipse. ✨',
+          allowedMentions: { users: [interaction.user.id] },
+        });
+        break;
+      case 'ajuda':
+        await interaction.reply({
+          embeds: [
+            new EmbedBuilder()
+              .setColor(purple)
+              .setTitle('✦ Guia celestial da Astralis')
+              .setDescription(
+                '**/ola** — Receba uma saudação.\n' +
+                '**/astralis** — Conheça minha história e minhas funções.\n' +
+                '**/eclipse** — Descubra as atividades do servidor.\n' +
+                '**/ping** — Verifique se estou respondendo.\n\n' +
+                '🌑 **Verificação:** no menu do servidor, escolha **Cargos vinculados → ✦・Verificado**.'
+              )
+              .setFooter({ text: 'Equipe do Eclipse: /previa-boasvindas mostra o cartão de recepção' }),
+          ],
+        });
+        break;
+      case 'astralis':
+        await interaction.reply({ embeds: [presentationEmbed(interaction.guild)] });
+        break;
+      case 'eclipse':
+        await interaction.reply({ embeds: [eclipseEmbed(interaction.guild)] });
+        break;
+      case 'ping':
+        await interaction.reply({ content: '✨ Astralis está aqui e respondendo!' });
+        break;
+      case 'previa-boasvindas':
+        if (!interaction.inGuild() || !interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild)) {
+          await interaction.reply({
+            content: 'Este comando é reservado à equipe que gerencia o servidor.',
+            flags: MessageFlags.Ephemeral,
+          });
+          return;
+        }
+        await interaction.reply({
+          embeds: [welcomeEmbed(interaction.user.toString(), interaction.guild)],
+          flags: MessageFlags.Ephemeral,
+          allowedMentions: { parse: [] },
+        });
+        break;
+      default:
+        break;
+    }
   } catch (error) {
     console.error('Astralis: erro ao responder ao comando:', error?.message || error);
   }
@@ -73,13 +205,8 @@ client.on(Events.GuildMemberAdd, async (member) => {
       console.warn('Astralis: canal de boas-vindas não encontrado ou não é de texto.');
       return;
     }
-    const embed = new EmbedBuilder()
-      .setColor(0x6a4c93)
-      .setTitle('☾ ⋆⁺₊✧ Boas-vindas ao Eclipse ✧₊⁺⋆')
-      .setDescription('🌙 Olá, ' + member.toString() + '!\nQue sua chegada seja o começo de uma linda história entre as estrelas.\n\n✦ Confira as regras e aproveite o nosso universo!')
-      .setFooter({ text: 'Astralis • Guardiã do Eclipse' });
     await channel.send({
-      embeds: [embed],
+      embeds: [welcomeEmbed(member.toString(), member.guild)],
       allowedMentions: { users: [member.id] },
     });
   } catch (error) {
