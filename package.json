@@ -6,10 +6,10 @@
   "engines": {
     "node": ">=18"
   },
-  "description": "A very simple example of a Linked Role bot for Discord.",
+  "description": "Verificação de cargos vinculados da Astralis para o servidor Eclipse.",
   "main": "src/server.js",
   "scripts": {
-    "start": "node src/server.js",
+    "start": "node src/register.js && node src/server.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
