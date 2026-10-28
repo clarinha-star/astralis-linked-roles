@@ -2,6 +2,7 @@ import express from 'express';
 import cookieParser from 'cookie-parser';
 
 import config from './config.js';
+import { startDiscordBot } from './bot.js';
 import * as discord from './discord.js';
 
 // Serviço OAuth2 para cargos vinculados da Astralis (Eclipse).
@@ -59,3 +60,6 @@ const port = process.env.PORT || 3000;
 app.listen(port, () => {
   console.log(`Astralis: serviço de verificação iniciado na porta ${port}.`);
 });
+
+// Comandos e boas-vindas operam junto do serviço de cargos vinculados.
+void startDiscordBot();
