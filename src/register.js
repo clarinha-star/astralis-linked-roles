@@ -9,20 +9,20 @@ const url = `https://discord.com/api/v10/applications/${config.DISCORD_CLIENT_ID
 const body = [
   {
     key: 'cookieseaten',
-    name: 'Cookies Eaten',
-    description: 'Cookies Eaten Greater Than',
+    name: 'Biscoitos comidos',
+    description: 'Quantidade de biscoitos comidos',
     type: 2,
   },
   {
     key: 'allergictonuts',
-    name: 'Allergic To Nuts',
-    description: 'Is Allergic To Nuts',
+    name: 'Alergia a nozes',
+    description: 'Indica alergia a nozes',
     type: 7,
   },
   {
     key: 'bakingsince',
-    name: 'Baking Since',
-    description: 'Days since baking their first cookie',
+    name: 'Assando desde',
+    description: 'Data do primeiro biscoito assado',
     type: 6,
   },
 ];
