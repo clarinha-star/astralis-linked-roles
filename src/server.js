@@ -16,7 +16,7 @@ import * as storage from './storage.js';
   * Just a happy little route to show our server is up.
   */
  app.get('/', (req, res) => {
-   res.send('👋');
+   res.send('🌙 Astralis — Serviço de verificação do servidor Eclipse disponível.');
  });
 
 /**
@@ -55,8 +55,8 @@ app.get('/linked-role', async (req, res) => {
     // make sure the state parameter exists
     const { clientState } = req.signedCookies;
     if (clientState !== discordState) {
-      console.error('State verification failed.');
-      return res.sendStatus(403);
+      console.error('Falha na validação de segurança da autorização.');
+      return res.status(403).send('Não foi possível validar a autorização. Volte ao Discord e tente novamente.');
     }
 
     const tokens = await discord.getOAuthTokens(code);
@@ -73,10 +73,10 @@ app.get('/linked-role', async (req, res) => {
     // 3. Update the users metadata, assuming future updates will be posted to the `/update-metadata` endpoint
     await updateMetadata(userId);
 
-    res.send('You did it!  Now go back to Discord.');
+    res.send('🌙 Tudo certo! Sua conta foi conectada à Astralis. Você já pode voltar ao Discord.');
   } catch (e) {
     console.error(e);
-    res.sendStatus(500);
+    res.status(500).send('Ocorreu um erro na verificação. Tente novamente mais tarde.');
   }
 });
 
@@ -92,7 +92,7 @@ app.get('/linked-role', async (req, res) => {
 
     res.sendStatus(204);
   } catch (e) {
-    res.sendStatus(500);
+    res.status(500).send('Ocorreu um erro na verificação. Tente novamente mais tarde.');
   }
 });
 
@@ -131,5 +131,5 @@ async function updateMetadata(userId) {
 
 const port = process.env.PORT || 3000;
 app.listen(port, () => {
-  console.log(`Example app listening on port ${port}`);
+  console.log(`Astralis: serviço de verificação iniciado na porta ${port}`);
 });
