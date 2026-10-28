@@ -1,45 +1,30 @@
 import config from './config.js';
 
-/**
- * Register the metadata to be stored by Discord. This should be a one time action.
- * Note: uses a Bot token for authentication, not a user token.
- */
+// Registra o requisito que pode ser usado no cargo vinculado "Verificado".
 const url = `https://discord.com/api/v10/applications/${config.DISCORD_CLIENT_ID}/role-connections/metadata`;
-// supported types: number_lt=1, number_gt=2, number_eq=3 number_neq=4, datetime_lt=5, datetime_gt=6, boolean_eq=7, boolean_neq=8
 const body = [
   {
-    key: 'cookieseaten',
-    name: 'Biscoitos comidos',
-    description: 'Quantidade de biscoitos comidos',
-    type: 2,
-  },
-  {
-    key: 'allergictonuts',
-    name: 'Alergia a nozes',
-    description: 'Indica alergia a nozes',
-    type: 7,
-  },
-  {
-    key: 'bakingsince',
-    name: 'Assando desde',
-    description: 'Data do primeiro biscoito assado',
-    type: 6,
+    key: 'conta_vinculada',
+    name: 'Conta conectada',
+    description: 'Autorizou a conexão do Discord com a Astralis',
+    type: 7, // boolean_eq
   },
 ];
 
+if (!config.DISCORD_TOKEN || !config.DISCORD_CLIENT_ID) {
+  throw new Error('Configure DISCORD_TOKEN e DISCORD_CLIENT_ID no Render.');
+}
+
 const response = await fetch(url, {
   method: 'PUT',
-  body: JSON.stringify(body),
   headers: {
     'Content-Type': 'application/json',
     Authorization: `Bot ${config.DISCORD_TOKEN}`,
   },
+  body: JSON.stringify(body),
 });
-if (response.ok) {
-  const data = await response.json();
-  console.log(data);
-} else {
-  //throw new Error(`Error pushing discord metadata schema: [${response.status}] ${response.statusText}`);
-  const data = await response.text();
-  console.log(data);
+
+if (!response.ok) {
+  throw new Error(`Não foi possível registrar os critérios da Astralis (HTTP ${response.status}).`);
 }
+console.log('Astralis: requisito Conta conectada registrado no Discord.');
